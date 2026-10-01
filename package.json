@@ -1,0 +1,20 @@
+{
+  "name": "velocita-run",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "VELOCITA RUN - a polished 3D endless runner through the transit arteries of Halcyon Bay.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173",
+    "bake:buildings": "node tools/bake-kenney.mjs",
+    "verify:buildings": "node tools/verify-towers.mjs && node tools/verify-skyline.mjs && node tools/verify-street.mjs"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

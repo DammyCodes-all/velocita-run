@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#070b12" />
+    <meta
+      name="description"
+      content="VELOCITA RUN — an endless run along the Halcyon Bay transit arterial."
+    />
+    <title>VELOCITA RUN</title>
+    <!--
+      Display face: a condensed industrial grotesque, to match the transit
+      signage art direction. Loaded with display=swap so a blocked or slow
+      font request falls back to a condensed system stack rather than stalling
+      first paint.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,700&display=swap"
+      rel="stylesheet"
+    />
+    <!--
+      Styles are imported from src/main.js so Vite can bundle and hash them.
+    -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⚡</text></svg>"
+    />
+  </head>
+  <body>
+    <!-- 3D canvas is inserted here by the renderer -->
+    <canvas id="stage" aria-label="Game viewport"></canvas>
+
+    <!-- ================= LOADING / START GATE ================= -->
+    <section id="screen-loading" class="screen screen--active" data-screen="loading">
+      <div class="loading__inner">
+        <div class="wordmark wordmark--loading">
+          <span class="wordmark__main">VELOCITA</span>
+          <span class="wordmark__sub">RUN</span>
+        </div>
+        <p class="loading__tagline">Halcyon Bay Transit Authority · Arterial Line</p>
+
+        <div class="loading__bar" role="progressbar" aria-label="Loading">
+          <div class="loading__bar-fill" id="loading-fill"></div>
+        </div>
+        <p class="loading__status" id="loading-status">Building the city…</p>
+
+        <button class="btn btn--primary btn--xl loading__start" id="btn-start-gate" hidden>
+          <span class="btn__label">Start Running</span>
+          <span class="btn__hint">or press Enter</span>
+        </button>
+      </div>
+      <div class="vignette-frame" aria-hidden="true"></div>
+    </section>
+
+    <!-- ================= MAIN MENU ================= -->
+    <section id="screen-menu" class="screen screen--menu" data-screen="menu">
+      <div class="menu">
+        <header class="menu__head">
+          <div class="wordmark">
+            <span class="wordmark__main">VELOCITA</span>
+            <span class="wordmark__sub">RUN</span>
+          </div>
+          <p class="menu__tagline" id="menu-tagline">Sector 7 · Ferry Basin</p>
+        </header>
+
+        <div class="menu__panel">
+          <div class="record">
+            <div class="record__item">
+              <span class="record__label">Best Score</span>
+              <span class="record__value" id="menu-best-score">0</span>
+            </div>
+            <div class="record__divider"></div>
+            <div class="record__item">
+              <span class="record__label">Best Distance</span>
+              <span class="record__value" id="menu-best-distance">0 m</span>
+            </div>
+            <div class="record__divider"></div>
+            <div class="record__item">
+              <span class="record__label">Quid Bank</span>
+              <span class="record__value record__value--gold" id="menu-coins">0</span>
+            </div>
+          </div>
+
+          <div class="menu__actions">
+            <button class="btn btn--primary btn--xl" id="btn-play">
+              <span class="btn__icon" aria-hidden="true">▶</span>
+              <span class="btn__label">Play</span>
+            </button>
+            <div class="menu__row">
+              <button class="btn btn--ghost" id="btn-characters">
+                <span class="btn__icon" aria-hidden="true">☺</span>
+                <span class="btn__label">Roster</span>
+              </button>
+              <button class="btn btn--ghost" id="btn-missions">
+                <span class="btn__icon" aria-hidden="true">◎</span>
+                <span class="btn__label">Missions</span>
+              </button>
+              <button class="btn btn--ghost" id="btn-settings">
+                <span class="btn__icon" aria-hidden="true">⚙</span>
+                <span class="btn__label">Settings</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <footer class="menu__foot">
+          <div class="controls-hint">
+            <kbd>←</kbd><kbd>→</kbd><span>Lane</span>
+            <kbd>Mouse</kbd><span>Steer</span>
+            <kbd>↑</kbd><kbd>Space</kbd><span>Jump</span>
+            <kbd>↓</kbd><span>Slide</span>
+            <kbd>Esc</kbd><span>Pause</span>
+          </div>
+        </footer>
+      </div>
+    </section>
+
+    <!-- ================= CHARACTER SELECT ================= -->
+    <section id="screen-characters" class="screen screen--panel" data-screen="characterSelect">
+      <div class="panel">
+        <header class="panel__head">
+          <button class="btn btn--icon" id="btn-characters-back" aria-label="Back">←</button>
+          <h2 class="panel__title">Roster</h2>
+          <div class="panel__head-spacer"></div>
+        </header>
+        <div class="roster" id="roster-grid"></div>
+      </div>
+    </section>
+
+    <!-- ================= MISSIONS ================= -->
+    <section id="screen-missions" class="screen screen--panel" data-screen="missions">
+      <div class="panel">
+        <header class="panel__head">
+          <button class="btn btn--icon" id="btn-missions-back" aria-label="Back">←</button>
+          <h2 class="panel__title">Contracts</h2>
+          <div class="panel__head-spacer"></div>
+        </header>
+        <div class="missions" id="mission-list"></div>
+        <div class="panel__foot">
+          <div class="stat-line">
+            <span class="stat-line__label">Contracts completed</span>
+            <span class="stat-line__value" id="mission-stat-total">0</span>
+          </div>
+          <div class="stat-line">
+            <span class="stat-line__label">Lifetime runs</span>
+            <span class="stat-line__value" id="mission-stat-runs">0</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section id="screen-settings" class="screen screen--panel" data-screen="settings">
+      <div class="panel">
+        <header class="panel__head">
+          <button class="btn btn--icon" id="btn-settings-back" aria-label="Back">←</button>
+          <h2 class="panel__title">Settings</h2>
+          <div class="panel__head-spacer"></div>
+        </header>
+
+        <div class="settings">
+          <div class="setting">
+            <label class="setting__label" for="set-quality">Graphics quality</label>
+            <div class="segmented" id="set-quality" role="group">
+              <button class="segmented__option" data-value="low">Low</button>
+              <button class="segmented__option" data-value="medium">Medium</button>
+              <button class="segmented__option" data-value="high">High</button>
+              <button class="segmented__option" data-value="auto">Auto</button>
+            </div>
+          </div>
+
+          <div class="setting">
+            <label class="setting__label" for="set-music">
+              Music <span class="setting__value" id="val-music">60%</span>
+            </label>
+            <input class="slider" type="range" id="set-music" min="0" max="100" step="1" />
+          </div>
+
+          <div class="setting">
+            <label class="setting__label" for="set-sfx">
+              Sound effects <span class="setting__value" id="val-sfx">80%</span>
+            </label>
+            <input class="slider" type="range" id="set-sfx" min="0" max="100" step="1" />
+          </div>
+
+          <div class="setting">
+            <label class="setting__label" for="set-shake">
+              Screen shake <span class="setting__value" id="val-shake">100%</span>
+            </label>
+            <input class="slider" type="range" id="set-shake" min="0" max="100" step="5" />
+          </div>
+
+          <div class="setting setting--row">
+            <label class="setting__label" for="set-fps">Show performance</label>
+            <button class="toggle" id="set-fps" role="switch" aria-checked="false"><span></span></button>
+          </div>
+
+          <div class="setting setting--row">
+            <label class="setting__label" for="set-mouse">Mouse steering</label>
+            <button class="toggle" id="set-mouse" role="switch" aria-checked="true"><span></span></button>
+          </div>
+
+          <div class="setting setting--row">
+            <label class="setting__label" for="set-invert">Invert lane controls</label>
+            <button class="toggle" id="set-invert" role="switch" aria-checked="false"><span></span></button>
+          </div>
+        </div>
+
+        <div class="panel__foot">
+          <button class="btn btn--ghost btn--small" id="btn-reset-data">Reset all progress</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= UPGRADES (in pause + game over) ================= -->
+    <section id="screen-upgrades" class="screen screen--panel" data-screen="upgrades">
+      <div class="panel">
+        <header class="panel__head">
+          <button class="btn btn--icon" id="btn-upgrades-back" aria-label="Back">←</button>
+          <h2 class="panel__title">Loadout</h2>
+          <div class="quid-bank" id="upgrades-bank"><span class="quid-bank__icon">◈</span><span id="upgrades-bank-value">0</span></div>
+        </header>
+        <div class="upgrades" id="upgrade-list"></div>
+      </div>
+    </section>
+
+    <!-- ================= HUD ================= -->
+    <div id="hud" class="hud" aria-live="polite">
+      <div class="hud__top">
+        <div class="hud__left">
+          <div class="hud-distance">
+            <span id="hud-distance">0</span><span class="hud-distance__unit">m</span>
+          </div>
+          <div class="hud-sector" id="hud-sector">Ferry Basin</div>
+        </div>
+
+        <div class="hud__center">
+          <div class="multiplier" id="hud-multiplier">
+            <span class="multiplier__x">×</span><span class="multiplier__value" id="hud-multiplier-value">1</span>
+          </div>
+          <div class="multiplier__bar"><span id="hud-multiplier-fill"></span></div>
+          <div class="multiplier__label" id="hud-multiplier-label">Streak</div>
+        </div>
+
+        <div class="hud__right">
+          <div class="hud-score">
+            <span class="hud-score__label">Score</span>
+            <span class="hud-score__value" id="hud-score">0</span>
+          </div>
+          <div class="hud__right-row">
+            <div class="hud-coins">
+              <span class="hud-coins__icon">◈</span>
+              <span class="hud-coins__value" id="hud-coins">0</span>
+            </div>
+            <button class="btn btn--icon btn--hud" id="btn-hud-pause" aria-label="Pause">❚❚</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="hud__bottom">
+        <div class="powerups" id="hud-powerups"></div>
+        <div class="missions-mini" id="hud-mission"></div>
+      </div>
+
+      <div class="streak-pop" id="streak-pop"></div>
+    </div>
+
+    <!-- ================= COUNTDOWN ================= -->
+    <!-- Anchored to the upper third: the lower centre of the screen belongs to
+         the track and the runner, and the number was covering both. -->
+    <div id="countdown" class="countdown">
+      <div class="countdown__inner">
+        <div class="countdown__hint" id="countdown-hint">Get Ready</div>
+        <div class="countdown__numwrap">
+          <span class="countdown__ring" aria-hidden="true"></span>
+          <span class="countdown__num" id="countdown-num">3</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= PAUSE ================= -->
+    <section id="screen-pause" class="screen screen--overlay" data-screen="paused">
+      <div class="overlay">
+        <h2 class="overlay__title">Paused</h2>
+        <div class="overlay__stats" id="pause-stats"></div>
+        <div class="overlay__actions">
+          <button class="btn btn--primary" id="btn-resume"><span class="btn__label">Resume</span></button>
+          <button class="btn btn--ghost" id="btn-pause-restart"><span class="btn__label">Restart</span></button>
+          <button class="btn btn--ghost" id="btn-pause-loadout"><span class="btn__label">Loadout</span></button>
+          <button class="btn btn--ghost btn--muted" id="btn-pause-quit"><span class="btn__label">Quit to menu</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= REVIVE ================= -->
+    <section id="screen-revive" class="screen screen--overlay" data-screen="revive">
+      <div class="overlay overlay--revive">
+        <div class="revive__pulse" aria-hidden="true"></div>
+        <h2 class="overlay__title overlay__title--warn">Run Lost</h2>
+        <p class="overlay__text">
+          Tap to recover — <span id="revive-timer">5.0</span>s
+        </p>
+        <div class="revive__actions">
+          <button class="btn btn--primary btn--lg" id="btn-revive">
+            <span class="btn__label">Recover</span>
+            <span class="btn__hint" id="revive-cost"></span>
+          </button>
+          <button class="btn btn--ghost" id="btn-revive-giveup"><span class="btn__label">End run</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= GAME OVER ================= -->
+    <section id="screen-gameover" class="screen screen--overlay" data-screen="gameOver">
+      <div class="overlay overlay--wide">
+        <div class="gameover__banner" id="gameover-banner">
+          <span class="gameover__banner-text">New Personal Best</span>
+        </div>
+        <h2 class="overlay__title">Run Complete</h2>
+
+        <div class="finalscore">
+          <span class="finalscore__label">Final Score</span>
+          <span class="finalscore__value" id="final-score">0</span>
+        </div>
+
+        <div class="statgrid">
+          <div class="statgrid__cell">
+            <span class="statgrid__label">Quids</span>
+            <span class="statgrid__value" id="final-coins">0</span>
+          </div>
+          <div class="statgrid__cell">
+            <span class="statgrid__label">Distance</span>
+            <span class="statgrid__value" id="final-distance">0 m</span>
+          </div>
+          <div class="statgrid__cell">
+            <span class="statgrid__label">Best</span>
+            <span class="statgrid__value" id="final-best">0</span>
+          </div>
+          <div class="statgrid__cell">
+            <span class="statgrid__label">Top Speed</span>
+            <span class="statgrid__value" id="final-speed">0 km/h</span>
+          </div>
+          <div class="statgrid__cell">
+            <span class="statgrid__label">Near Misses</span>
+            <span class="statgrid__value" id="final-nearmiss">0</span>
+          </div>
+          <div class="statgrid__cell">
+            <span class="statgrid__label">Cells</span>
+            <span class="statgrid__value" id="final-powerups">0</span>
+          </div>
+        </div>
+
+        <div class="missions-results" id="gameover-missions"></div>
+
+        <div class="overlay__actions overlay__actions--row">
+          <button class="btn btn--primary btn--lg" id="btn-again">
+            <span class="btn__label">Run Again</span>
+          </button>
+          <button class="btn btn--ghost btn--lg" id="btn-loadout">
+            <span class="btn__label">Loadout</span>
+          </button>
+          <button class="btn btn--ghost btn--lg btn--muted" id="btn-home">
+            <span class="btn__label">Menu</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= TOASTS ================= -->
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+
+    <!-- ================= FULLSCREEN FX OVERLAYS ================= -->
+    <div class="fx-vignette" id="fx-vignette" aria-hidden="true"></div>
+    <div class="fx-damage" id="fx-damage" aria-hidden="true"></div>
+    <div class="fx-speedlines" id="fx-speedlines" aria-hidden="true"></div>
+
+    <div class="perf" id="perf" hidden></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
