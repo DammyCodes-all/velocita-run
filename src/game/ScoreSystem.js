@@ -1,7 +1,7 @@
-import { SCORE } from '../core/GameConfig.js';
-import { Storage } from '../core/Storage.js';
-import { Events } from '../core/EventBus.js';
-import { clamp01 } from '../util/MathUtils.js';
+import { SCORE } from "../core/GameConfig.js";
+import { Storage } from "../core/Storage.js";
+import { Events } from "../core/EventBus.js";
+import { clamp01 } from "../util/MathUtils.js";
 
 /**
  * ScoreSystem — score, streak multiplier, coins and best-run records.
@@ -39,12 +39,19 @@ export class ScoreSystem {
    */
   update(dt, metres, powerups) {
     this.distance += metres;
-    const gained = metres * SCORE.PER_METRE * this.multiplier * (powerups?.scoreMultiplier ?? 1);
+    const gained =
+      metres *
+      SCORE.PER_METRE *
+      this.multiplier *
+      (powerups?.scoreMultiplier ?? 1);
     this.score += gained;
 
     // Multiplier steps every SCORE.MULTIPLIER_STEP metres.
     this.multiplierProgress += metres;
-    if (this.multiplierProgress >= SCORE.MULTIPLIER_STEP && this.multiplier < SCORE.MULTIPLIER_MAX) {
+    if (
+      this.multiplierProgress >= SCORE.MULTIPLIER_STEP &&
+      this.multiplier < SCORE.MULTIPLIER_MAX
+    ) {
       this.multiplierProgress -= SCORE.MULTIPLIER_STEP;
       this.multiplier = Math.min(SCORE.MULTIPLIER_MAX, this.multiplier + 1);
       this.bus.emit(Events.MULTIPLIER_CHANGE, { multiplier: this.multiplier });
@@ -98,7 +105,10 @@ export class ScoreSystem {
     }
     // Catch up fast when far behind, ease when close.
     const catchUp = diff > 200 ? 6 : 2.4;
-    this.displayScore = Math.min(this.score, this.displayScore + diff * catchUp * dt);
+    this.displayScore = Math.min(
+      this.score,
+      this.displayScore + diff * catchUp * dt,
+    );
   }
 
   /** Finalise a run, writing records. Returns a summary. */
@@ -109,7 +119,10 @@ export class ScoreSystem {
 
     Storage.update((data) => {
       data.bestScore = Math.max(data.bestScore, finalScore);
-      data.bestDistance = Math.max(data.bestDistance, Math.floor(this.distance));
+      data.bestDistance = Math.max(
+        data.bestDistance,
+        Math.floor(this.distance),
+      );
       data.totalRuns += 1;
       data.totalCoins += this.coins;
       data.coinsBank += this.coins;
