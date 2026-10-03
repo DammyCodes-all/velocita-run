@@ -64,7 +64,9 @@ export class World {
     );
     // The close-range layer. Everything readable about the kit — window frames,
     // sills, awnings, shopfront doors — only resolves here, inside the fog.
-    this.street = new StreetFront(scene, Math.max(3, Math.round(6 * quality.propDensity)), 5);
+    // Per-side count covers the full 260m recycle span at 22m spacing (12 per
+    // side ≈ 264m); fewer leaves the distance empty and the street pops in.
+    this.street = new StreetFront(scene, Math.max(10, Math.round(12 * quality.propDensity)), 6);
     this.props = new SectorProps(scene, SECTORS);
 
     this.obstacles = new ObstacleFactory(this.obstacleRoot);

@@ -328,9 +328,15 @@ const FACE = { plusZ: 0, plusX: 1, minusZ: 2, minusX: 3 };
 function composeBlock() {
   const out = { solid: [], glass: [] };
 
-  const cols = 1 + ((Math.random() * 3) | 0); // 1-3 bays of frontage
-  const rows = 2 + ((Math.random() * 2) | 0); // 2-3 cells deep
-  const floors = 1 + ((Math.random() * 2) | 0); // 1-2 storeys
+  // Narrow frontage, shallow depth, taller massing. The old 1-3 x 2-3 x 1-2
+  // produced 14x14x3m pancakes: 14m long along the track with 15m spacing, so
+  // the terraces fused into one continuous smeared wall viewed edge-on, and
+  // the 4.6:1 width:height ratio read as slab rather than house. 1-2 bays by
+  // 1-2 cells by 2-3 storeys gives ~7-10m frontages with real gaps between
+  // them and roughly cubic proportions that read as individual buildings.
+  const cols = 1 + ((Math.random() * 2) | 0); // 1-2 bays of frontage
+  const rows = 1 + ((Math.random() * 2) | 0); // 1-2 cells deep
+  const floors = 2 + ((Math.random() * 2) | 0); // 2-3 storeys
   const offX = (cols - 1) / 2;
   const offZ = (rows - 1) / 2;
 
@@ -402,11 +408,17 @@ function composeBlock() {
   // --- roof ---------------------------------------------------------------
   // A parapet with a recessed deck reads as a real roofline from the side and
   // stops the block reading as a shoebox. Rooftop clutter gives it a silhouette.
+  // The borders must tile the full perimeter: a single centred piece leaves
+  // metre-wide gaps on either side that read as broken rooflines up close.
   const topY = floors;
-  place(out, 'roof-flat-border-straight', 0, topY, -offZ - 0.5, FACE.minusZ);
-  place(out, 'roof-flat-border-straight', 0, topY, offZ + 0.5, FACE.plusZ);
-  place(out, 'roof-flat-border-side', -offX - 0.5, topY, 0, FACE.minusX);
-  place(out, 'roof-flat-border-side', offX + 0.5, topY, 0, FACE.plusX);
+  for (let ix = 0; ix < cols; ix++) {
+    place(out, 'roof-flat-border-straight', ix - offX, topY, -offZ - 0.5, FACE.minusZ);
+    place(out, 'roof-flat-border-straight', ix - offX, topY, offZ + 0.5, FACE.plusZ);
+  }
+  for (let iz = 0; iz < rows; iz++) {
+    place(out, 'roof-flat-border-side', -offX - 0.5, topY, iz - offZ, FACE.minusX);
+    place(out, 'roof-flat-border-side', offX + 0.5, topY, iz - offZ, FACE.plusX);
+  }
   for (let ix = 0; ix < cols; ix++) {
     for (let iz = 0; iz < rows; iz++) {
       place(out, 'roof-flat-center', ix - offX, topY, iz - offZ);
@@ -580,11 +592,16 @@ function composeTower() {
     if (chance(0.6)) place(out, pick(ROOF_AC), (Math.random() - 0.5) * capCols, topY + 0.5, (Math.random() - 0.5) * capRows);
   } else if (crownStyle === 'parapet') {
     // A raised lip around a recessed roof deck reads as a real roof rather
-    // than a lid, and catches rim light on the parapet.
-    place(out, 'roof-flat-border-straight', 0, topY, -tOffZ - 0.5);
-    place(out, 'roof-flat-border-straight', 0, topY, tOffZ + 0.5, 2);
-    place(out, 'roof-flat-border-side', -tOffX - 0.5, topY, 0, 1);
-    place(out, 'roof-flat-border-side', tOffX + 0.5, topY, 0, 1);
+    // than a lid, and catches rim light on the parapet. Borders tile the full
+    // perimeter — single centred pieces leave gaps on wider crowns.
+    for (let ix = 0; ix < tCols; ix++) {
+      place(out, 'roof-flat-border-straight', ix - tOffX, topY, -tOffZ - 0.5);
+      place(out, 'roof-flat-border-straight', ix - tOffX, topY, tOffZ + 0.5, 2);
+    }
+    for (let iz = 0; iz < tRows; iz++) {
+      place(out, 'roof-flat-border-side', -tOffX - 0.5, topY, iz - tOffZ, 1);
+      place(out, 'roof-flat-border-side', tOffX + 0.5, topY, iz - tOffZ, 1);
+    }
     for (let ix = 0; ix < tCols; ix++) {
       for (let iz = 0; iz < tRows; iz++) {
         place(out, 'roof-flat-center', ix - tOffX, topY, iz - tOffZ);

@@ -68,15 +68,16 @@ const mid = 0x63707d;
 const light = 0x8a97a4;
 
 const PROP_BUILDERS = {
-  // Ferry Basin: gantry cranes over the container yard.
+  // Ferry Basin: gantry cranes over the container yard. Legs sit well outside
+  // the street wall (faces at ~8.6m, backs to ~19m) so they never clip houses.
   gantry: () => {
     const parts = [];
     for (const sx of [-1, 1]) {
-      addBox(parts, 1.2, 22, 1.2, sx * 9, 11, 0, mid);
-      addBox(parts, 1.0, 16, 1.0, sx * 9, 8, 7, mid);
+      addBox(parts, 1.2, 22, 1.2, sx * 21, 11, 0, mid);
+      addBox(parts, 1.0, 16, 1.0, sx * 21, 8, 7, mid);
     }
-    addBox(parts, 22, 1.6, 2.2, 0, 22.5, 0, light);
-    addBox(parts, 26, 1.0, 1.4, 0, 24.5, 5.5, mid);
+    addBox(parts, 46, 1.6, 2.2, 0, 22.5, 0, light);
+    addBox(parts, 50, 1.0, 1.4, 0, 24.5, 5.5, mid);
     addBox(parts, 2.4, 2.0, 2.4, 0, 21.4, 5.5, dark); // trolley
     return merge(parts);
   },
@@ -104,14 +105,15 @@ const PROP_BUILDERS = {
     return merge(parts);
   },
 
-  // Storm Sluice: a bulkhead ring spanning overhead.
+  // Storm Sluice: a bulkhead ring spanning overhead. Legs clear the street
+  // wall the same way the gantry does.
   bulkhead: () => {
     const parts = [];
-    addBox(parts, 34, 1.8, 2.4, 0, 15, 0, mid);
-    addBox(parts, 34, 1.0, 1.2, 0, 13.2, 0, dark);
+    addBox(parts, 46, 1.8, 2.4, 0, 15, 0, mid);
+    addBox(parts, 46, 1.0, 1.2, 0, 13.2, 0, dark);
     for (const sx of [-1, 1]) {
-      addBox(parts, 2.4, 15, 2.4, sx * 15.5, 7.5, 0, mid);
-      addCyl(parts, 1.6, 1.6, 3.0, 10, sx * 15.5, 2.5, 0, dark); // drain pipe
+      addBox(parts, 2.4, 15, 2.4, sx * 21.5, 7.5, 0, mid);
+      addCyl(parts, 1.6, 1.6, 3.0, 10, sx * 21.5, 2.5, 0, dark); // drain pipe
     }
     return merge(parts);
   },
@@ -363,8 +365,11 @@ export class Skyline {
  * deck either side of the 9.2m-wide track, so nothing can clip the lanes.
  */
 const STREET_CLEARANCE = TRACK.DECK_HALF_WIDTH + 4.0;
-/** Gap between consecutive blocks along the street, in metres. */
-const STREET_SPACING = 15;
+/** Gap between consecutive blocks along the street, in metres. Wide enough
+ *  that terraces read as individual houses with alleys between, not one long
+ *  wall smeared by perspective. Frontages are ~7-10m after scale, so 22m
+ *  leaves ~12m gaps. */
+const STREET_SPACING = 22;
 /** How far ahead a block is respawned when it passes the camera. */
 const STREET_SPAN = 260;
 /** World z past which a block is recycled. */
@@ -391,7 +396,7 @@ export class StreetFront {
    * @param {number} perSide blocks per side
    * @param {number} blockCount distinct block geometries to compose
    */
-  constructor(parent, perSide = 6, blockCount = 6) {
+  constructor(parent, perSide = 12, blockCount = 6) {
     this.group = new THREE.Group();
     parent.add(this.group);
 
@@ -444,18 +449,24 @@ export class StreetFront {
 
     // Seed the terrace. Both sides are filled up front so the first frame the
     // player sees already has a street around them, not an empty corridor that
-    // fills in over the next few seconds.
+    // fills in over the next few seconds. Per-side count is chosen to cover
+    // the full recycle span: with STREET_SPACING gaps, fewer blocks leave the
+    // distance empty and the street pops in and out of fog.
     for (let side = -1; side <= 1; side += 2) {
       for (let i = 0; i < perSide; i++) {
         this.entries.push({
           variant: (Math.random() * this.variants.length) | 0,
           side,
-          z: -(i * STREET_SPACING) - Math.random() * 6,
+          z: -(i * STREET_SPACING) - Math.random() * 10,
           // Kenney cells are metre-scale, so a block needs only a small nudge
           // to give a believable ~2.3m storey height. Stored per entry because
           // refresh() runs every frame and must stay deterministic.
-          scale: 3.5 + Math.random() * 0.7,
+          scale: 3.2 + Math.random() * 0.6,
           tint: 0.82 + Math.random() * 0.3,
+          // Jitter breaks the perfect-wall read: a sub-metre setback wobble
+          // and a degree or two of yaw turn a corridor wall into houses.
+          setbackJitter: (Math.random() - 0.5) * 1.6,
+          yawJitter: (Math.random() - 0.5) * 0.07,
         });
       }
     }
@@ -475,8 +486,10 @@ export class StreetFront {
       entry.z += deltaScroll;
       if (entry.z > STREET_RECYCLE) {
         entry.variant = (Math.random() * this.variants.length) | 0;
-        entry.scale = 3.5 + Math.random() * 0.7;
+        entry.scale = 3.2 + Math.random() * 0.6;
         entry.tint = 0.82 + Math.random() * 0.3;
+        entry.setbackJitter = (Math.random() - 0.5) * 1.6;
+        entry.yawJitter = (Math.random() - 0.5) * 0.07;
         // Respawn ahead of the camera, jittered so the street doesn't step
         // forward in lockstep when a block is recycled.
         entry.z = -STREET_SPAN - Math.random() * 40;
@@ -496,13 +509,15 @@ export class StreetFront {
       const { wall, glass, depth } = this.variants[vi];
       // Push the block back by its own depth so the *street face* lands on the
       // clearance line, rather than centring the mass on it and burying the
-      // shopfronts inside the corridor.
-      const setback = STREET_CLEARANCE + depth * entry.scale;
+      // shopfronts inside the corridor. A small per-entry wobble keeps the
+      // frontage from reading as one poured wall.
+      const setback = STREET_CLEARANCE + depth * entry.scale + (entry.setbackJitter ?? 0);
       this._pos.set(entry.side * setback, 0, entry.z);
       // Blocks are composed shopfront-toward -Z. A quarter turn aims that face
-      // at the track: +90 deg on the right, -90 deg on the left. Both sides get
-      // the same angle so the terraces line up into continuous frontages.
-      this._quat.setFromAxisAngle(Y_AXIS, entry.side > 0 ? Math.PI / 2 : -Math.PI / 2);
+      // at the track: +90 deg on the right, -90 deg on the left, plus a touch
+      // of yaw so neighbouring houses don't line up into a single plane.
+      const baseYaw = entry.side > 0 ? Math.PI / 2 : -Math.PI / 2;
+      this._quat.setFromAxisAngle(Y_AXIS, baseYaw + (entry.yawJitter ?? 0));
       this._scale.setScalar(entry.scale);
       this._matrix.compose(this._pos, this._quat, this._scale);
 
@@ -569,8 +584,12 @@ const PROP_LAYOUT = {
  * Generous on purpose: foreground mass that fills the sides of the frame eats
  * screen the track needs and adds nothing readable at speed. The city should
  * frame the corridor, not close it in.
+ *
+ * Must clear the street wall, not just the deck: street faces sit at ~8.6m
+ * with backs reaching ~19m, so side props at the old 12.1m grew straight out
+ * of the houses. 21m+ keeps them behind the rooftops.
  */
-const CORRIDOR_CLEARANCE = TRACK.DECK_HALF_WIDTH + 7.5;
+const CORRIDOR_CLEARANCE = TRACK.DECK_HALF_WIDTH + 16.5;
 
 /**
  * SectorProps — midground structures at full scroll speed, one prop type per
